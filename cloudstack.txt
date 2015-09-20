@@ -1,0 +1,46 @@
+http://www.oschina.net/question/54100_137627
+
+cloudstack下载路径
+http://cloudstack.apt-get.eu/
+
+echo "cloudstack.vpsee.com" > /etc/hostname
+vi /etc/sysconfig/network
+HOSTNAME=cloudstack.vpsee.com
+echo "192.168.2.150 cloudstack cloudstack.vpsee.com" >> /etc/hosts
+reboot
+
+vi /etc/yum.repos.d/cloudstack.repo
+[cloudstack]
+name=cloudstack
+baseurl=http://cloudstack.apt-get.eu/centos/6/4.5/
+enabled=1
+gpgcheck=0
+
+yum update
+yum install ntp
+yum install cloudstack-management
+yum install mysql-server
+yum install nfs-utils
+
+
+修改mysql配置
+vi /etc/my.cnf
+[mysqld]
+
+innodb_rollback_on_timeout=1
+innodb_lock_wait_timeout=600
+max_connections=350
+log-bin=mysql-bin
+binlog-format = 'ROW'
+
+启动ntp mysql 
+mysql_secure_installation设置密码
+
+设置selinux为permissive
+
+root:root为mysql的帐号密码
+cloudstack-setup-databases cloud:cloud@localhost --deploy-as=root:root -i 192.168.0.29
+cloudstack-setup-management
+
+
+
