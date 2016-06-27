@@ -1,46 +1,20 @@
-http://www.oschina.net/question/54100_137627
-
-cloudstack下载路径
-http://cloudstack.apt-get.eu/
-
-echo "cloudstack.vpsee.com" > /etc/hostname
-vi /etc/sysconfig/network
-HOSTNAME=cloudstack.vpsee.com
-echo "192.168.2.150 cloudstack cloudstack.vpsee.com" >> /etc/hosts
-reboot
-
-vi /etc/yum.repos.d/cloudstack.repo
-[cloudstack]
-name=cloudstack
-baseurl=http://cloudstack.apt-get.eu/centos/6/4.5/
-enabled=1
-gpgcheck=0
-
-yum update
-yum install ntp
-yum install cloudstack-management
-yum install mysql-server
-yum install nfs-utils
-
-
-修改mysql配置
-vi /etc/my.cnf
-[mysqld]
-
-innodb_rollback_on_timeout=1
-innodb_lock_wait_timeout=600
-max_connections=350
-log-bin=mysql-bin
-binlog-format = 'ROW'
-
-启动ntp mysql 
-mysql_secure_installation设置密码
-
-设置selinux为permissive
-
-root:root为mysql的帐号密码
-cloudstack-setup-databases cloud:cloud@localhost --deploy-as=root:root -i 192.168.0.29
-cloudstack-setup-management
-
-
-
+U2FsdGVkX18U09wR+4Q60H0/WtwhlIN3820+LKO6EPmZCRL1Dvt7BwLjoHqU+DcW
+nwUUzsDBfVWBsw1C5blPGIqwmAMrQz2RzypFFtesrLiaYvTaLA+B6Ot4Hwh5t9Kf
+kZoxzXQ8vxwfaVwnEEfRAq+jRZ2DDn9D3sPqGpAD0OLSeBDv9tjMpWY38JxZCmbx
+yral5AiyiMVGS4MFDyfti5knEM53Vbxvd4KuKJ3eElVqNHfJu2t2t1HvRoK9slLy
+7FjHOY+CwWgaJVuu0iGLti1ikdH+fCd5KjBnwi0GMJwpNnNZYv03bbWLNJu+Y1z3
+/19Z80BypbyqOjEPCTpeEmQZR3kDN8MfyyfUVynArMty8r/uDNr+I+26Mg9OkLwn
+gPVOUW7QZ0RKbyRYk+PZMzDg6wkxa1mvXcqsRvv+1J9ZhmnM7BTCCU00UX7ediLq
+iTzXwLlw3EJ6IUQfru3O0lHIjXqTO6JWKaCHZqMVzpQ5zqbczlYXC9iwAjVKHbKv
+ZuThz7ORdXgv8inTKTZYrYGarFUjl22jEBA2WvIMDf/38PfCW7PFdf5HBsJnlpzT
+LGrfNuZXd9B3M0nVE6FDRp6EZSc+5XVBMj4kS8GvWqLZ4Kx2CYscFfB/JJYXhx5H
+EmfNrpojfVjVdFuzQRR3oHUy3MwJAoKdSIS0OJ5cojXVodB2oF3L6oowuy1w+hzq
+Wjam8cmqh8q5hxowIxeBI+wT65kXi6EB5RNXkLQr2xLJnf2Cnbg0JtL7I8rHDJNg
+O90q85i6wqwc3Z+pZQWn710K2u6eXSpYosPU1Y1QgTGXVsMHBcCKibCucnzEm+AX
+fU4y4HAgQMcTJUyQRH8JEGFE4C7l1oi3tCzO3l92HA480Rb9TlG5ZYasjcj0Jtw8
+hVFCx5/+1EN5kkabU9Lul5MzZJIqav6bcRP7g43l+V8I5rzNX5qcfqbdBmSxx1wD
+mFoc4CZ5en26zPqVC6MqkgehZRVAejqbSNTZj4C4Z9QNlXWyr1/ymsAO71dalHHe
+STiQlTSt+o6ViRH+InmoO7fti8b7YzehyujVDVubysY0Brd/V8qelD5CgPPBgepN
+CjDAxlt4E5TyL1RXslStwwlX4VREltWa+/PLw/L+e7bU2WTPBEixT2s7a04ejRnQ
+89EJPdGGTxqi24ppRHl1LG7zv9aPBOAkjQs0dQMq7NkFTj79/6CAm5VnmEgW+KXa
+PkNwHZNFGLyBVyF1ZJEv3GTV+ckZn3a6c39r5q78FAE=

@@ -1,403 +1,275 @@
-10.1.50.160 controller   
-10.1.50.161 network    
-	网卡1：10.1.50.161
-	网卡2：10.1.51.161
-	网卡3：无地址，不要修改 HWADDR 和 UUID 关键字的内容
-		TYPE=Ethernet
-		BOOTPROTO=none
-		NAME=ens35
-		DEVICE=ens35
-		ONBOOT=yes
-		UUID=1777ed92-ff58-7956-b8b3-ed928f82e0c8
-
-10.1.50.162 compute1     
-	网卡1：
-	网卡2：10.1.51.162
-	
-
-
-echo 10.1.50.160 controller     >> /etc/hosts
-echo 10.1.50.161 network        >> /etc/hosts
-echo 10.1.50.162 compute1       >> /etc/hosts
-
-hostnamectl set-hostname controller
-hostnamectl set-hostname network
-hostnamectl set-hostname compute1
-
-yum install -y yum-plugin-priorities epel-release centos-release-openstack mariadb mariadb-server MySQL-python rabbitmq-server 
-
-yum install -y openstack-selinux openstack-glance python-glanceclient
-
-controller:
-	yum install openstack-keystone python-keystoneclient -y
-	yum install openstack-glance python-glanceclient -y 
-	yum install openstack-nova-api openstack-nova-cert openstack-nova-conductor openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler python-novaclient -y 
-	vi /etc/my.cnf
-	bind-address = 10.1.50.160
-	default-storage-engine = innodb
-	innodb_file_per_table
-	collation-server = utf8_general_ci
-	init-connect = 'SET NAMES utf8'
-	character-set-server = utf8
-
-	systemctl enable mariadb.service 
-	systemctl start mariadb.service
-	mysql_secure_installation 
-	
-	systemctl enable rabbitmq-server.service 
-	systemctl start rabbitmq-server.service #port=5672/tcp
-	rabbitmqctl change_password guest RABBIT_PASS 
-	
-	mysql -uroot -p123456
-	CREATE DATABASE keystone;
-	GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'KEYSTONE_DBPASS';
-	GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'KEYSTONE_DBPASS';
-	CREATE DATABASE glance; 
-	GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'GLANCE_DBPASS'; 
-	GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'GLANCE_DBPASS'; 
-	CREATE DATABASE nova; 
-	GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY 'NOVA_DBPASS';
-	GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY 'NOVA_DBPASS';
-
-	vi /etc/keystone/keystone.conf
-	[DEFAULT]
-	admin_token = 9bff71a365e23c5d61f3   # openssl rand -hex 10 产生的随机值
-	verbose = True
-	
-	[database]
-	connection = mysql://keystone:KEYSTONE_DBPASS@controller/keystone
-	
-	[token]
-	provider = keystone.token.providers.uuid.Provider
-	driver = keystone.token.persistence.backends.sql.Token
-	
-	[revoke]
-	driver = keystone.contrib.revoke.backends.sql.Revoke
-	
-	#创建管理证书与密钥，设置相关文件权限
-	keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
-	chown -R keystone:keystone /var/log/keystone
-	chown -R keystone:keystone /etc/keystone/ssl
-	chmod -R o-rwx /etc/keystone/ssl
-	
-	#填充数据库数据
-	su -s /bin/sh -c "keystone-manage db_sync" keystone <=> keystone-manage db_sync
-	
-	systemctl enable openstack-keystone.service
-	systemctl start openstack-keystone.service
-	
-	#默认情况下,认证身份令牌到期后不会删除，会一直存在数据库中，所以加一下自动删除
-	(crontab -l -u keystone 2>&1 | grep -q token_flush) || echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1' >> /var/spool/cron/keystone
-	
-	#配置管理令牌与端点
-	export OS_SERVICE_TOKEN=9bff71a365e23c5d61f3
-	export OS_SERVICE_ENDPOINT=http://controller:35357/v2.0
-	
-	#填加项目、用户与角色
-	keystone tenant-create --name admin --description "Admin Tenant"
-	keystone user-create --name admin --pass ADMIN_PASS --email root@localhost
-	keystone role-create --name admin 
-	keystone user-role-add --tenant admin --user admin --role admin
-	keystone role-create --name _member_
-	keystone user-role-add --tenant admin --user admin --role _member_ 
-	
-	keystone tenant-create --name demo --description "Demo Tenant" 
-	keystone user-create --name demo --pass DEMO_PASS --email EMAIL_ADDRESS 
-	keystone user-role-add --tenant demo --user demo --role _member_
-	keystone tenant-create --name service --description "Service Tenant"
-	keystone service-create --name keystone --type identity --description "OpenStack Identity"
-	keystone endpoint-create --service-id $(keystone service-list | awk '/ identity / {print $2}') --publicurl http://controller:5000/v2.0 --internalurl http://controller:5000/v2.0 --adminurl http://controller:35357/v2.0 --region regionOne 
-	
-	keystone --os-tenant-name admin --os-username admin --os-password ADMIN_PASS --os-auth-url http://controller:35357/v2.0 token-get 
-	keystone --os-tenant-name admin --os-username admin --os-password ADMIN_PASS --os-auth-url http://controller:35357/v2.0 tenant-list
-	
-	vi admin-openrc.sh
-	export OS_TENANT_NAME=admin 
-	export OS_USERNAME=admin 
-	export OS_PASSWORD=ADMIN_PASS 
-	export OS_AUTH_URL=http://controller:35357/v2.0  
-	
-	vi demo-openrc.sh 
-	export OS_TENANT_NAME=demo 
-	export OS_USERNAME=demo 
-	export OS_PASSWORD=DEMO_PASS 
-	export OS_AUTH_URL=http://controller:5000/v2.0
-	
-	
-	keystone user-create --name glance --pass GLANCE_PASS 
-	keystone user-role-add --user glance --tenant service --role admin 
-	keystone service-create --name glance --type image --description "OpenStack Image Service" 
-	keystone endpoint-create --service-id $(keystone service-list | awk '/ image / {print $2}') --publicurl http://controller:9292 --internalurl http://controller:9292 --adminurl http://controller:9292 --region regionOne 
-	
-	vi /etc/glance/glance-api.conf
-	[DEFAULT] 
-	verbose=True 
-	[database] 
-	connection = mysql://glance:GLANCE_DBPASS@controller/glance 
-	[keystone_authtoken] 
-	auth_uri = http://controller:5000/v2.0 
-	identity_uri = http://controller:35357 
-	admin_tenant_name = service 
-	admin_user = glance 
-	admin_password = GLANCE_PASS 
-	[paste_deploy] 
-	flavor = keystone 
-	[store_type_location_strategy] 
-	[profiler] 
-	[task] 
-	[glance_store] 
-	default_store = file 
-	filesystem_store_datadir = /var/lib/glance/images/
-	
-	vi /etc/glance/glance-registry.conf
-	[DEFAULT] 
-	verbose=True 
-	[database] 
-	connection = mysql://glance:GLANCE_DBPASS@controller/glance 
-	[keystone_authtoken] 
-	auth_uri = http://controller:5000/v2.0 
-	identity_uri = http://controller:35357 
-	admin_tenant_name = service 
-	admin_user = glance 
-	admin_password = GLANCE_PASS 
-	[paste_deploy] 
-	flavor = keystone 
-	[profiler]
-	
-	 su -s /bin/sh -c "glance-manage db_sync" glance
-	 systemctl enable openstack-glance-api.service openstack-glance-registry.service
-	 systemctl start openstack-glance-api.service openstack-glance-registry.service
-	 
-	 mkdir /tmp/images 
-	 上传img至该目录下
-	 
-	 source /root/admin-openrc.sh
-	 cd /tmp/images/
-	 glance image-create --name "CentOS-7-x86_64-Minimal-1511" --file CentOS-7-x86_64-Minimal-1511.iso --disk-format qcow2 --container-format bare --is-public True --progress 
-	 glance image-list 
-	 
-	 source /root/admin-openrc.sh
-	 keystone user-create --name nova --pass NOVA_PASS
-	 keystone user-role-add --user nova --tenant service --role admin
-	 
-	 keystone service-create --name nova --type compute --description "OpenStack Compute"
-	 keystone endpoint-create --service-id $(keystone service-list | awk '/ compute / {print $2}') --publicurl http://controller:8774/v2/%\(tenant_id\)s --internalurl http://controller:8774/v2/%\(tenant_id\)s --adminurl http://controller:8774/v2/%\(tenant_id\)s --region regionOne
-
-	 vi /etc/nova/nova.conf
-	[database]
-	connection = mysql://nova:NOVA_DBPASS@controller/nova  #连数据库
-	
-	rpc_backend = rabbit                      #连 rabbit
-	rabbit_host = controller
-	rabbit_password = RABBIT_PASS
-	
-	auth_strategy = keystone    #使用keystone做身份认证
-	my_ip = 10.1.50.160
-	vncserver_listen = 10.1.50.160
-	vncserver_proxyclient_address = 10.1.50.160
-	verbose = True
-	
-	[keystone_authtoken]                                           #连到keystone
-	auth_uri = http://controller:5000/v2.0 
-	identity_uri = http://controller:35357
-	admin_tenant_name = service
-	admin_user = nova
-	admin_password = NOVA_PASS
-	
-	[glance]    #glance  主机位置
-	host = controller 
-	
-	su -s /bin/sh -c "nova-manage db sync" nova
-	systemctl enable openstack-nova-api.service openstack-nova-cert.service openstack-nova-consoleauth.service openstack-nova-scheduler.service openstack-nova-conductor.service openstack-nova-novncproxy.service 
-	systemctl start openstack-nova-api.service openstack-nova-cert.service openstack-nova-consoleauth.service openstack-nova-scheduler.service openstack-nova-conductor.service openstack-nova-novncproxy.service
-	
-compute1：
-	yum install openstack-nova-compute sysfsutils -y
-	
-	[DEFAULT]
-	rpc_backend = rabbit  
-	rabbit_host = controller
-	rabbit_password = RABBIT_PASS
-	
-	auth_strategy = keystone 
-	
-	my_ip =10.0.0.31    #本机的管理ip
-	
-	vnc_enabled = True              #novnc使用
-	vncserver_listen = 0.0.0.0
-	vncserver_proxyclient_address = 10.0.0.31
-	novncproxy_base_url = http://controller:6080/vnc_auto.html 
-	
-	verbose = True 
-	
-	[keystone_authtoken]
-	
-	auth_uri = http://controller:5000/v2.0
-	identity_uri = http://controller:35357
-	admin_tenant_name = service
-	admin_user = nova
-	admin_password = NOVA_PASS
-	[glance]
-	
-	host = controller
-
-	
-	systemctl enable libvirtd.service openstack-nova-compute.service
-	systemctl start libvirtd.service
-	systemctl start openstack-nova-compute.service
-	
-	在controller上操作
-	source admin-openrc.sh
-	nova service-list
-
-	flush privileges
-
-source admin-openrc.sh
-nova service-list
-nova image-list
-
-network:
-	yum install openstack-neutron openstack-neutron-ml2 python-neutronclient which -y
-	yum -y install openstack-nova-scheduler openstack-nova-conductor openstack-nova-api
-	yum -y install openstack-neutron openstack-neutron-ml2 openstack-neutron-openvswitch
-	
-	mysql -u root -p123456
-	CREATE DATABASE neutron;
-	GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY 'NEUTRON_DBPASS';
-	GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY 'NEUTRON_DBPASS';
-	
-	source admin-openrc.sh
-	
-	keystone user-create --name neutron --pass NEUTRON_PASS
-	keystone user-role-add --user neutron --tenant service --role admin
-	keystone service-create --name neutron --type network --description "OpenStack Networking"
-	keystone endpoint-create --service-id $(keystone service-list | awk '/ network / {print $2}') --publicurl http://controller:9696 --adminurl http://controller:9696 --internalurl http://controller:9696 --region regionOne
-
-	vi /etc/neutron/neutron.conf
-	[database]
-	connection = mysql://neutron:NEUTRON_DBPASS@controller/neutron
-	
-	在 [DEFAULT] 段，对 RabbitMQ 消息代理相关参数进行配置：
-	[DEFAULT]
-	verbose = True
-	rpc_backend = rabbit
-	rabbit_host = controller
-	rabbit_password = RABBIT_PASS
-	
-	在 [DEFAULT] 和 [keystone_authtoken] 部分，配置身份认证服务的访问：
-	[DEFAULT]
-	...
-	auth_strategy = keystone
-	[keystone_authtoken]
-	...
-	auth_uri = http://controller:5000/v2.0
-	identity_uri = http://controller:35357
-	admin_tenant_name = service
-	admin_user = neutron
-	admin_password = NEUTRON_PASS
-	
-	在 [DEFAULT] 部分，启用 Modular Layer 2 (ML2) 插件、router 服务和 overlapping IP 地址：
-	[DEFAULT]
-	...
-	core_plugin = ml2
-	service_plugins = router
-	allow_overlapping_ips = True
-	
-	在 [DEFAULT] 部分，配置 Networking 以通知 Compute 网络拓扑的变化：
-	[DEFAULT]
-	...
-	notify_nova_on_port_status_changes = True
-	notify_nova_on_port_data_changes = True
-	nova_url = http://controller:8774/v2
-	nova_admin_auth_url = http://controller:35357/v2.0
-	nova_region_name = regionOne
-	nova_admin_username = nova
-	nova_admin_tenant_id = SERVICE_TENANT_ID
-	nova_admin_password = NOVA_PASS
-
-
-	source admin-openrc.sh
-	keystone tenant-get service
-	
-	vi /etc/nova/nova.conf
-	[DEFAULT]
-	...
-	network_api_class = nova.network.neutronv2.api.API
-	security_group_api = neutron
-	linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
-	firewall_driver = nova.virt.firewall.NoopFirewallDriver
-	
-	[neutron]
-	...
-	url = http://controller:9696
-	auth_strategy = keystone
-	admin_auth_url = http://controller:35357/v2.0
-	admin_tenant_name = service
-	admin_username = neutron
-	admin_password = NEUTRON_PASS
-
-	
-	network:
-	vi /etc/neutron/plugins/ml2/ml2_conf.ini
-	
-	[ml2]
-	...
-	type_drivers = flat,gre
-	tenant_network_types = gre
-	mechanism_drivers = openvswitch
-	
-	[ml2_type_gre]
-	...
-	tunnel_id_ranges = 1:1000
-	
-	[securitygroup]
-	...
-	enable_security_group = True
-	enable_ipset = True
-	firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-	
-	ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
-	
-
-	su -s /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade juno" neutron
-	
-	systemctl restart openstack-nova-api.service openstack-nova-scheduler.service openstack-nova-conductor.service
-	systemctl enable neutron-server.service
-	systemctl start neutron-server.service
-	
-	
-	source admin-openrc.sh
-	neutron ext-list
-	
-	vi /etc/sysctl.conf
-	net.ipv4.ip_forward=1
-	net.ipv4.conf.all.rp_filter=0
-	net.ipv4.conf.default.rp_filter=0
-	
-	sysctl -p
-	
-
-	
-	
-	
-	
-	
-	
-
-	
-	
-	
-	
-	
-	
-	
-	
-
-	
-	
-	
-
-
-
-
-
+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
