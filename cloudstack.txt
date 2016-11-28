@@ -1,20 +1,46 @@
-U2FsdGVkX1940TnBiTcK03/QleZqPIJjSiklqthx4h33B9B/Sq7s9rR76XIf25CU
-GVJH/mlA1AF/Au5/X97bGDPl76eLWMNGqhlR9x0RTpeceYOc7tas0pkP2mmRLO9w
-hayvGJS+Amo1SLucTq/p4tRq3VsYsHMV8TQDYiKeis03S1A52Rsn+MTg2/jh0cWP
-Gk7ycoyVt8QwUddQiCbw9Xg3QwDa06KrbP/8CeHLQU2tylvdvmk5v96JkVD2xbL8
-S6PCQql9mKsmN5rJHIa2sZl78Qb3rIZrrBZ0JxDN76tecx4XIlAzW4y6ZHPg7Vp8
-JKA6V/TfbBKBABQI1y/7eJ4WMqMyEMSPAWWXpJ/A75JwLH5MqFvKUOMrTfe/ipuJ
-235zZQQQD1n2weVbhHoYOFgcTZ8arSvVqzrhFE/dgT/1Xhtu23DyepzclsvaL9zZ
-JuLLE/NH5uuBsRnt1gGh55gy5U+25PzUZJv2N4Kpck0szw2+Fk09+KsYv1dqaKm2
-Mu4UDnL5DhNfmvkF6PiGWG45TTN8oQEnzvCmDaEA5W0crkyBiEV8hV2C3qU1xrAd
-yP8d/BgpL7CWTRVpUt0wbgtvDOLbNGIiMETEtGd3RRHvPx7X9+tHq5ijS/xo3Ot2
-wcNijtmPGLq4UkWzNssuANH95jv0uuP7cXxbWSrVW8AqJhYKH4IN79MbLXTlgd5m
-Hls78mu89gZqROkBckqi9QZ6+9+lHA2COoPJTsdAEja0Mt29EN8lvNUn25IIRS8F
-8I0TpuJs0sahIxBpUFUr0nq7GnXKZynVfvXVHIR4CkkCIdhyBaW/H5J/LFR8RHXz
-t3pBs3hl3ifdrtCwFBbXj99Eo1vGTaIOGcADtMRnTI1/gOxh5TlqkaWQQJLRcLiS
-FalfC4oy4ECVSx4HUrqPrFSkefEgsM6ahWCjeUM6nE52YilbjqbWwj6DC/gdGWmg
-uoZuJMf2ncjDYcjKOVeLwSRCKao0v0trME+ziiowd5U2Kfs1sMzacVXhwc+fJBHR
-WVZncSpkELw7ScOBoXOSfAC41uvMg+u6FAhrru13a9UxRj58reh3jSEf7tb1gpCF
-MiA6Xin1iJScKyCkD7I9wHiP83PZM9ujov7lkjLOo+jVgpUk0XVSbOqYj/NlGfGH
-ECQ3v/CB+qoCshq4QUMtJZpTeKqovjiZDTGrpMNBC3o69JAZTnfja6gz2iZ3TA4K
-aIANBNB66hdw5ItGjc46Wg9s08+Lh3Sj3g5PDPNgw6g=
+http://www.oschina.net/question/54100_137627
+
+cloudstack下载路径
+http://cloudstack.apt-get.eu/
+
+echo "cloudstack.vpsee.com" > /etc/hostname
+vi /etc/sysconfig/network
+HOSTNAME=cloudstack.vpsee.com
+echo "192.168.2.150 cloudstack cloudstack.vpsee.com" >> /etc/hosts
+reboot
+
+vi /etc/yum.repos.d/cloudstack.repo
+[cloudstack]
+name=cloudstack
+baseurl=http://cloudstack.apt-get.eu/centos/6/4.5/
+enabled=1
+gpgcheck=0
+
+yum update
+yum install ntp
+yum install cloudstack-management
+yum install mysql-server
+yum install nfs-utils
+
+
+修改mysql配置
+vi /etc/my.cnf
+[mysqld]
+
+innodb_rollback_on_timeout=1
+innodb_lock_wait_timeout=600
+max_connections=350
+log-bin=mysql-bin
+binlog-format = 'ROW'
+
+启动ntp mysql 
+mysql_secure_installation设置密码
+
+设置selinux为permissive
+
+root:root为mysql的帐号密码
+cloudstack-setup-databases cloud:cloud@localhost --deploy-as=root:root -i 192.168.0.29
+cloudstack-setup-management
+
+
+
