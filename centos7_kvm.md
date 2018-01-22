@@ -3,27 +3,31 @@ egrep '(vmx|svm)' /proc/cpuinfo
 vmx 为Intel的CPU指令集
 svm 为AMD的CPU指令集
 
+```shell
 yum -y install qemu-kvm qemu-img virt-manager libvirt libvirt-python libvirt-client virt-install virt-viewer bridge-utils
+```
 
-qemu-kvm：该软件包主要包含KVM内核模块和适用于KVM的QEMU模拟器。KVM模块负责CPU和内存的调度，QEMU负责虚拟机I/O设备的模拟。
-qemu-img：qemu磁盘image管理器
-virt-install：用来创建虚拟机的命令行工具
-libvirt：提供libvirtd daemon来管理虚拟机和控制hypervisor
-libvirt-client：提供客户端API用来访问server和提供管理虚拟机命令行工具的virsh实体
-virt-viewer：图形控制台
-libvirt-daemon:libvirtd守护进程，作为客户端管理工具跟Hypervisor和虚拟机之间的桥梁。
-libvirt-daemon-driver-xxx:从名字来看属于libvirtd服务的驱动文件，作为libvirtd服务跟Hypervisor不同对象(如qemu模拟器，网络，存储等)间的接口。
-virt-manager:图形界面的KVM管理工具。
+qemu-kvm：该软件包主要包含KVM内核模块和适用于KVM的QEMU模拟器。KVM模块负责CPU和内存的调度，QEMU负责虚拟机I/O设备的模拟。<br>
+qemu-img：qemu磁盘image管理器<br>
+virt-install：用来创建虚拟机的命令行工具<br>
+libvirt：提供libvirtd daemon来管理虚拟机和控制hypervisor<br>
+libvirt-client：提供客户端API用来访问server和提供管理虚拟机命令行工具的virsh实体<br>
+virt-viewer：图形控制台<br>
+libvirt-daemon:libvirtd守护进程，作为客户端管理工具跟Hypervisor和虚拟机之间的桥梁。<br>
+libvirt-daemon-driver-xxx:从名字来看属于libvirtd服务的驱动文件，作为libvirtd服务跟Hypervisor不同对象(如qemu模拟器，网络，存储等)间的接口。<br>
+virt-manager:图形界面的KVM管理工具。<br>
 
+```shell
 systemctl enable libvirtd.service
 systemctl start libvirtd.service
 systemctl list-unit-files | grep libvirtd
+```
 
 检查KVM是否加载成功
 lsmod | grep kvm
 检查KVM是否成功安装
 
-
+```
 echo 1 > /proc/sys/net/ipv4/ip_forward 
 
 grep -v ^# ifcfg-enp2s0 
@@ -67,11 +71,6 @@ virt-install  --name=ljtest  --ram=1024  --vcpus=1  --cdrom=/root/CentOS-7-x86_6
 -graphics：Guest显示设置
 -disk path：磁盘位置
 
-
-
-
-
-
 virt-manager
 
 virsh list --all
@@ -94,5 +93,5 @@ virt-install --virt-type kvm --name centos-7.2 --ram 1024 \
 virsh connect --name qemu:///system
 
 virsh list
-
+```
  
